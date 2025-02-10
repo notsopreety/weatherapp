@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeatherSphere Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --background-color: #ffffff;
+            --text-color: #333333;
+            --card-bg: #f8f9fa;
+            --transition-speed: 0.3s;
+        }
+
+        [data-theme="dark"] {
+            --background-color: #1a1a1a;
+            --text-color: #ffffff;
+            --card-bg: #2d2d2d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--background-color);
+            color: var(--text-color);
+            transition: background-color var(--transition-speed);
+            min-height: 100vh;
+        }
+
+        .weather-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-container {
+            position: relative;
+            flex-grow: 1;
+            max-width: 500px;
+        }
+
+        #search-input {
+            width: 100%;
+            padding: 0.8rem;
+            border-radius: 25px;
+            border: 2px solid var(--primary-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            padding-right: 100px;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 10px;
+            margin-top: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 0.8rem;
+            cursor: pointer;
+            transition: background-color var(--transition-speed);
+        }
+
+        .suggestion-item:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 20px;
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            transition: transform var(--transition-speed);
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        .weather-display {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .current-weather {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .weather-main {
+            text-align: center;
+        }
+
+        #temperature {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .weather-icon {
+            font-size: 5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .weather-forecast {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .forecast-card {
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform var(--transition-speed);
+        }
+
+        .forecast-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .forecast-icon {
+            font-size: 2rem;
+            margin: 0.5rem 0;
+        }
+
+        .error-message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        @media (max-width: 768px) {
+            .current-weather {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .weather-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="weather-container">
+        <header class="app-header">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search city...">
+                <div id="autocomplete-results" class="autocomplete-dropdown"></div>
+                <button id="geolocation-btn"><i class="fas fa-location-arrow"></i></button>
+            </div>
+            <div class="controls">
+                <button id="theme-toggle"><i class="fas fa-moon"></i></button>
+                <button id="unit-toggle">°C/°F</button>
+            </div>
+        </header>
+
+        <main class="weather-display">
+            <div class="current-weather">
+                <div class="weather-main">
+                    <h1 id="temperature">--°C</h1>
+                    <div class="weather-icon" id="weather-icon"></div>
+                    <h2 id="weather-description">--</h2>
+                    <h3 id="location">--</h3>
+                </div>
+                <div class="weather-details">
+                    <div class="detail-item">
+                        <i class="fas fa-tint"></i>
+                        <span id="humidity">--%</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-wind"></i>
+                        <span id="wind-speed">-- m/s</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span id="pressure">-- hPa</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-sun"></i>
+                        <span id="sunrise">--:--</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-moon"></i>
+                        <span id="sunset">--:--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="weather-forecast" id="forecast-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const API_KEY = 'f459fb6e1a9c178788534d7fff122af5';
+        
+        class WeatherApp {
+            constructor() {
+                this.units = localStorage.getItem('weatherAppUnits') || 'metric';
+                this.theme = localStorage.getItem('weatherAppTheme') || 'light';
+                this.currentLocation = null;
+                this.cache = JSON.parse(localStorage.getItem('weatherCache')) || {
+                    current: {},
+                    forecast: {}
+                };
+
+                this.init();
+            }
+
+            init() {
+                this.setInitialTheme();
+                this.setupEventListeners();
+                this.loadCachedData();
+                this.attemptGeolocation();
+            }
+
+            setInitialTheme() {
+                document.body.setAttribute('data-theme', this.theme);
+            }
+
+            setupEventListeners() {
+                document.getElementById('search-input').addEventListener('input', 
+                    this.debounce(this.handleSearchInput.bind(this), 300));
+                document.getElementById('geolocation-btn').addEventListener('click', 
+                    this.handleGeolocation.bind(this));
+                document.getElementById('theme-toggle').addEventListener('click', 
+                    this.toggleTheme.bind(this));
+                document.getElementById('unit-toggle').addEventListener('click', 
+                    this.toggleUnits.bind(this));
+            }
+
+            async handleSearchInput(event) {
+                const query = event.target.value.trim();
+                if (query.length < 2) return;
+                
+                try {
+                    const response = await fetch(
+                        `https://api.openweathermap.org/geo/1.0/direct?q=${query}&limit=5&appid=${API_KEY}`
+                    );
+                    const suggestions = await response.json();
+                    this.showAutocomplete(suggestions);
+                } catch (error) {
+                    this.showError('Failed to fetch locations');
+                }
+            }
+
+            showAutocomplete(suggestions) {
+                const dropdown = document.getElementById('autocomplete-results');
+                dropdown.innerHTML = suggestions.map(location => `
+                    <div class="suggestion-item" data-lat="${location.lat}" data-lon="${location.lon}">
+                        ${location.name}, ${location.country}
+                    </div>
+                `).join('');
+                
+                dropdown.style.display = suggestions.length ? 'block' : 'none';
+                
+                dropdown.querySelectorAll('.suggestion-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const lat = item.dataset.lat;
+                        const lon = item.dataset.lon;
+                        this.fetchWeatherByCoords(lat, lon);
+                        dropdown.style.display = 'none';
+                    });
+                });
+            }
+
+            async fetchWeatherByCoords(lat, lon) {
+                try {
+                    const [currentRes, forecastRes] = await Promise.all([
+                        fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=${this.units}&appid=${API_KEY}`),
+                        fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=${this.units}&appid=${API_KEY}`)
+                    ]);
+
+                    if (!currentRes.ok || !forecastRes.ok) throw new Error('API Error');
+                    
+                    const currentData = await currentRes.json();
+                    const forecastData = await forecastRes.json();
+                    
+                    this.currentLocation = currentData.name;
+                    this.cacheData(currentData, forecastData);
+                    this.updateUI(currentData, forecastData);
+                } catch (error) {
+                    this.showError('Failed to fetch weather data');
+                }
+            }
+
+            cacheData(current, forecast) {
+                this.cache = {
+                    current: { data: current, timestamp: Date.now() },
+                    forecast: { data: forecast, timestamp: Date.now() }
+                };
+                localStorage.setItem('weatherCache', JSON.stringify(this.cache));
+            }
+
+            loadCachedData() {
+                if (this.cache.current.data && Date.now() - this.cache.current.timestamp < 600000) {
+                    this.updateUI(this.cache.current.data, this.cache.forecast.data);
+                }
+            }
+
+            updateUI(current, forecast) {
+                // Update current weather
+                document.getElementById('temperature').textContent = 
+                    `${Math.round(current.main.temp)}°${this.units === 'metric' ? 'C' : 'F'}`;
+                document.getElementById('weather-description').textContent = 
+                    current.weather[0].description;
+                document.getElementById('location').textContent = 
+                    `${current.name}, ${current.sys.country}`;
+                document.getElementById('humidity').textContent = 
+                    `${current.main.humidity}%`;
+                document.getElementById('wind-speed').textContent = 
+                    `${current.wind.speed} ${this.units === 'metric' ? 'm/s' : 'mph'}`;
+                document.getElementById('pressure').textContent = 
+                    `${current.main.pressure} hPa`;
+
+                // Update weather icon
+                const icon = document.getElementById('weather-icon');
+                icon.className = `weather-icon ${this.getWeatherIcon(current.weather[0].id)}`;
+
+                // Update sunrise/sunset times
+                const sunriseTime = new Date(current.sys.sunrise * 1000);
+                const sunsetTime = new Date(current.sys.sunset * 1000);
+                document.getElementById('sunrise').textContent = 
+                    this.formatTime(sunriseTime);
+                document.getElementById('sunset').textContent = 
+                    this.formatTime(sunsetTime);
+
+                // Update forecast
+                this.updateForecast(forecast);
+            }
+
+            getWeatherIcon(conditionCode) {
+                if (conditionCode >= 200 && conditionCode < 300) return 'fas fa-bolt';
+                if (conditionCode >= 300 && conditionCode < 600) return 'fas fa-cloud-rain';
+                if (conditionCode >= 600 && conditionCode < 700) return 'fas fa-snowflake';
+                if (conditionCode >= 700 && conditionCode < 800) return 'fas fa-smog';
+                if (conditionCode === 800) return 'fas fa-sun';
+                if (conditionCode > 800) return 'fas fa-cloud';
+                return 'fas fa-question';
+            }
+
+            formatTime(date) {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            updateForecast(forecast) {
+                const forecastContainer = document.getElementById('forecast-container');
+                const dailyForecast = this.processForecastData(forecast);
+                
+                forecastContainer.innerHTML = dailyForecast.map(day => `
+                    <div class="forecast-card">
+                        <h3>${new Date(day.dt_txt).toLocaleDateString('en', { weekday: 'short' })}</h3>
+                        <div class="forecast-icon ${this.getWeatherIcon(day.weather[0].id)}"></div>
+                        <div class="forecast-temp">
+                            ${Math.round(day.main.temp)}°${this.units === 'metric' ? 'C' : 'F'}
+                        </div>
+                        <div class="forecast-description">${day.weather[0].description}</div>
+                    </div>
+                `).join('');
+            }
+
+            processForecastData(forecast) {
+                return forecast.list.filter((item, index) => index % 8 === 0).slice(0, 5);
+            }
+
+            toggleTheme() {
+                this.theme = this.theme === 'light' ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', this.theme);
+                localStorage.setItem('weatherAppTheme', this.theme);
+            }
+
+            toggleUnits() {
+                this.units = this.units === 'metric' ? 'imperial' : 'metric';
+                localStorage.setItem('weatherAppUnits', this.units);
+                if (this.currentLocation) {
+                    this.fetchWeatherByCoords(
+                        this.cache.current.data.coord.lat,
+                        this.cache.current.data.coord.lon
+                    );
+                }
+            }
+
+            handleGeolocation() {
+                if (!navigator.geolocation) {
+                    this.showError('Geolocation not supported');
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        this.fetchWeatherByCoords(
+                            position.coords.latitude,
+                            position.coords.longitude
+                        );
+                    },
+                    error => {
+                        this.showError('Geolocation blocked. Please enable permissions.');
+                    }
+                );
+            }
+
+            attemptGeolocation() {
+                if (localStorage.getItem('geoPermission') === 'granted') {
+                    this.handleGeolocation();
+                }
+            }
+
+            showError(message) {
+                const errorEl = document.createElement('div');
+                errorEl.className = 'error-message';
+                errorEl.textContent = message;
+                document.body.appendChild(errorEl);
+                setTimeout(() => errorEl.remove(), 3000);
+            }
+
+            debounce(func, wait) {
+                let timeout;
+                return (...args) => {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(this, args), wait);
+                };
+            }
+        }
+
+        // Initialize the app
+        const weatherApp = new WeatherApp();
+    </script>
+</body>
+</html>
